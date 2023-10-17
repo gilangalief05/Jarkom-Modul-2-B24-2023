@@ -108,22 +108,27 @@ echo nameserver 192.168.122.1 > /etc/resolv.conf
 5. Kemudian reload lagi semua node
 
 ### 2. Buatlah website utama pada node arjuna dengan akses ke arjuna.yyy.com dengan alias www.arjuna.yyy.com dengan yyy merupakan kode kelompok.
-1. Pada file `/etc/bind/named.conf.local` di `YudhistiraDNSMaster`, tulislah seperti di bawah ini
+1. Pada `YudhistiraDNSMaster`, update dan install bind9
+```
+apt-get update
+apt-get install bind9 -y
+```
+2. Pada file `/etc/bind/named.conf.local`, tulislah seperti di bawah ini
 ```
 zone "arjuna.b24.com" {
 	type master;
 	file "/etc/bind/jarkom/arjuna.b24.com";
 };
 ```
-2. Buatlah directory `/etc/bind/jarkom`
+3. Buatlah directory `/etc/bind/jarkom`
 ```
 mkdir /etc/bind/jarkom
 ```
-3. Copy `/etc/bind/db.local` ke `/etc/bind/jarkom/arjuna.b24.com`
+4. Copy `/etc/bind/db.local` ke `/etc/bind/jarkom/arjuna.b24.com`
 ```
 cp /etc/bind/db.local /etc/bind/jarkom/arjuna.b24.com
 ```
-4. Tulislah file `/etc/bind/jarkom/arjuna.b24.com` seperti di bawah ini
+5. Tulislah file `/etc/bind/jarkom/arjuna.b24.com` seperti di bawah ini
 ```
 $TTL	604800
 @	IN	SOA	arjuna.b24.com.	root.arjuna.b24.com. (
@@ -137,13 +142,13 @@ $TTL	604800
 @	IN	A		192.190.2.3		; IP Arjuna
 www	IN	CNAME	arjuna.b24.com.
 ```
-5. Kemudian pada `SadewaClient` dan `NakulaClient`, tambah alamat IP YudhistiraDNSMaster
+6. Kemudian pada `SadewaClient` dan `NakulaClient`, tambah alamat IP YudhistiraDNSMaster
 ```
 echo nameserver 192.190.3.2 >> /etc/resolv.conf
 ```
 
 ### 3. Dengan cara yang sama seperti soal nomor 2, buatlah website utama dengan akses ke abimanyu.yyy.com dan alias www.abimanyu.yyy.com.
-1. Pada file `/etc/bind/named.conf.local` di `YudhistiraDNSMaster`, tambahkan tulisan
+1. Pada file `/etc/bind/named.conf.local`, tambahkan tulisan
 ```
 zone "abimanyu.b24.com" {
 	type master;
@@ -152,7 +157,7 @@ zone "abimanyu.b24.com" {
 ```
 2. Copy `/etc/bind/db.local` ke `/etc/bind/jarkom/abimanyu.b24.com`
 ```
-cp /etc/bind/db.local /etc/bind/jarkom/arjuna.b24.com
+cp /etc/bind/db.local /etc/bind/jarkom/abimanyu.b24.com
 ```
 3. Tulislah file `/etc/bind/jarkom/abimanyu.b24.com` seperti di bawah ini
 ```
@@ -204,14 +209,9 @@ $TTL	604800
 
 
 ### 6. Agar dapat tetap dihubungi ketika DNS Server Yudhistira bermasalah, buat juga Werkudara sebagai DNS Slave untuk domain utama.
-YudhistiraDNSMaster
-nano .bashrc
-bash create-slave.sh
-service bind9 restart
-service bind9 stop
-
-nano create-slave.sh
-echo 'zone "arjuna.b24.com" {
+1. Pada file `/etc/bind/named.conf.local` di `YudhistiraDNSMaster`, tambahkan tulisan pada arjuna.B24.com dan abimanyu.B24.com:
+```
+zone "arjuna.b24.com" {
 	type master;
 	notify yes;
 	also-notify { 192.190.2.2; };
@@ -231,18 +231,15 @@ zone "2.190.192.in-addr.arpa" {
     	type master;
     	file "/etc/bind/jarkom/2.190.192.in-addr.arpa";
 };
-' > /etc/bind/named.conf.local
-
-WerkudaraDNSSlave
-nano .bashrc
+```
+2. Kemudian pada `WerkudaraDNSSlave`, update dan install bind9
+```
 apt-get update
 apt-get install bind9 -y
-service bind9 restart
-bash create-slave2.sh
-service bind9 restart
-
-nano create-slave2.sh
-echo 'zone "arjuna.b24.com" {
+```
+3.  Pada file `/etc/bind/named.conf.local`, tuliskan seperti di bawah ini:
+```
+zone "arjuna.b24.com" {
 	type slave;
     	masters { 192.190.3.2; };
     	file "/var/lib/bind/arjuna.b24.com";
@@ -253,46 +250,22 @@ zone "abimanyu.b24.com" {
     	masters { 192.190.3.2; };
     	file "/var/lib/bind/abimanyu.b24.com";
 };
-' > /etc/bind/named.conf.local
-
-SadewaClient
-nano connect-dns-slave.sh
-echo '#nameserver 192.168.122.1
-nameserver 192.190.3.2 
-nameserver 192.190.2.2
-' > /etc/resolv.conf
+```
+4. Kemudian pada `SadewaClient` dan `NakulaClient`, tambah alamat IP YudhistiraDNSMaster
+```
+echo nameserver 192.190.2.2 >> /etc/resolv.conf
+```
 
 
 ### 7. Seperti yang kita tahu karena banyak sekali informasi yang harus diterima, buatlah subdomain khusus untuk perang yaitu baratayuda.abimanyu.yyy.com dengan alias www.baratayuda.abimanyu.yyy.com yang didelegasikan dari Yudhistira ke Werkudara dengan IP menuju ke Abimanyu dalam folder Baratayuda.
-YudhistiraDNSMaster
-nano .bashrc
-bash 7-create-subdomain-baratayuda.sh
-service bind9 restart
-bash  7-change-conf-options.sh
-service bind9 restart
-bash 7-change-conf-local-abimanyu.sh
-service bind9 restart
-
-nano 7-create-subdomain-baratayuda.sh
-echo '$TTL	604800
-@	IN	SOA	abimanyu.b24.com.	root.abimanyu.b24.com. (
-			2023101201		; Serial
-			604800		; Refresh
-			86400			; Retry
-			2419200		; Expire
-			604800 )		; Negative Cache TTL
-;
-@	IN	NS		abimanyu.b24.com.
-@	IN	A		192.190.2.4		; IP Abimanyu
-www	IN	CNAME	abimanyu.b24.com.
-parikesit	IN	A	192.190.2.4	; IP Abimanyu
+1. Tambahkan teks ini pada file `/etc/bind/jarkom/abimanyu.b24.com`
+```
 ns1	IN	A		192.190.2.4	; IP Abimanyu
 baratayuda	IN	NS	ns1
-@	IN	AAAA		::1
-' > /etc/bind/jarkom/abimanyu.b24.com
-
-nano  7-change-conf-options.sh
-echo 'options {
+```
+2. Kemudian ubah teks pada file `/etc/bind/named.conf.options` pada `YudhistiraDNSMaster` seperti di bawah ini
+```
+options {
         directory "/var/cache/bind";
 
         // If there is a firewall between you and nameservers you want
@@ -317,42 +290,11 @@ echo 'options {
 
         auth-nxdomain no;    # conform to RFC1035
         listen-on-v6 { any; };
-};' > /etc/bind/named.conf.options
-
-nano 7-change-conf-local-abimanyu.sh
-echo 'zone "arjuna.b24.com" {
-	type master;
-	notify yes;
-	also-notify { 192.190.2.2; };
-    	allow-transfer { 192.190.2.2; };
-	file "/etc/bind/jarkom/arjuna.b24.com";
 };
-
-zone "abimanyu.b24.com" {
-	type master;
-	notify yes;
-	also-notify { 192.190.2.2; };
-    	allow-transfer { 192.190.2.2; };
-	file "/etc/bind/jarkom/abimanyu.b24.com";
-};
-
-zone "2.190.192.in-addr.arpa" {
-    	type master;
-    	file "/etc/bind/jarkom/2.190.192.in-addr.arpa";
-};
-' > /etc/bind/named.conf.local
-
-WerkudaraDNSSlave
-nano .bashrc
-bash 7-change-conf-options.sh
-service bind9 restart
-bash 7-change-conf-local-abimanyu.sh
-service bind9 restart
-bash 7-conf-baratayuda-abimanyu.sh
-service bind9 restart
-
-nano  7-change-conf-options.sh
-echo 'options {
+```
+3. Kemudian ubah teks pada file `/etc/bind/named.conf.options` pada `WerkudaraDNSSlave` seperti di bawah ini
+```
+options {
         directory "/var/cache/bind";
 
         // If there is a firewall between you and nameservers you want
@@ -377,31 +319,26 @@ echo 'options {
 
         auth-nxdomain no;    # conform to RFC1035
         listen-on-v6 { any; };
-};' > /etc/bind/named.conf.options
-
-nano 7-change-conf-local-abimanyu.sh
-echo 'zone "arjuna.b24.com" {
-	type slave;
-    	masters { 192.190.3.2; };
-    	file "/var/lib/bind/arjuna.b24.com";
 };
-
-zone "abimanyu.b24.com" {
-	type slave;
-    	masters { 192.190.3.2; };
-    	file "/var/lib/bind/abimanyu.b24.com";
-};
-
+```
+4. Kemudian pada file `/etc/bind/named.conf.local`, tambahkan tulisan di bawah ini:
+```
 zone "baratayuda.abimanyu.b24.com" {
 	type master;
 file "/etc/bind/baratayuda/baratayuda.abimanyu.b24.com";
 };
-' > /etc/bind/named.conf.local
-
+```
+5. Kemudian buat directory `/etc/bind/baratayuda`
+```
 mkdir /etc/bind/baratayuda
-
-nano 7-conf-baratayuda-abimanyu.sh
-echo '$TTL	604800
+```
+6. Copy `/etc/bind/db.local` ke `/etc/bind/baratayuda/baratayuda.abimanyu.b24.com`
+```
+cp /etc/bind/db.local /etc/bind/baratayuda/baratayuda.abimanyu.b24.com
+```
+7. Tulislah file `/etc/bind/baratayuda/baratayuda.abimanyu.b24.com` seperti di bawah ini
+```
+$TTL	604800
 @	IN	SOA	baratayuda.abimanyu.b24.com. root.baratayuda.abimanyu.b24.com. (
 			2023101201	; Serial
 			604800		; Refresh
@@ -412,13 +349,12 @@ echo '$TTL	604800
 @	IN	NS	baratayuda.abimanyu.b24.com.
 @	IN	A	192.190.2.4	; IP Abimanyu
 www	IN	CNAME	baratayuda.abimanyu.b24.com.
-' > /etc/bind/baratayuda/baratayuda.abimanyu.b24.com
-
-SadewaClient
-ping baratayuda.abimanyu.b24.com -c 5
+```
 
 ### 8. Untuk informasi yang lebih spesifik mengenai Ranjapan Baratayuda, buatlah subdomain melalui Werkudara dengan akses rjp.baratayuda.abimanyu.yyy.com dengan alias www.rjp.baratayuda.abimanyu.yyy.com yang mengarah ke Abimanyu.
-echo '$TTL	604800
+1. Tambahkan teks ini pada file `/etc/bind/baratayuda/baratayuda.abimanyu.b24.com`
+```
+$TTL	604800
 @	IN	SOA	baratayuda.abimanyu.b24.com. root.baratayuda.abimanyu.b24.com. (
 			2023101201	; Serial
 			604800		; Refresh
@@ -431,37 +367,29 @@ echo '$TTL	604800
 www	IN	CNAME	baratayuda.abimanyu.b24.com.
 rjp	IN	A	192.190.2.4	; IP Abimanyu
 www.rjp	IN	CNAME	baratayuda.abimanyu.b24.com.
-@	IN	AAAA		::1
+```
 
 ### 9. Arjuna merupakan suatu Load Balancer Nginx dengan tiga worker (yang juga menggunakan nginx sebagai webserver) yaitu Prabakusuma, Abimanyu, dan Wisanggeni. Lakukan deployment pada masing-masing worker.
-nano .bashrc
-bash 9-add-wget-unzip.sh
-bash 9-download-arjuna.sh
-bash 9-10-add-nginx-php-php-fpm.sh
-bash 9-10-deploy-arjuna.sh
-bash 9-10-troubleshooting.sh
-
-nano 9-add-wget-unzip.sh
+1. Pada semua node webserver, lakukan update dan install `wget` dan `unzip`
+```
 apt-get update
-
 apt-get install wget unzip -y
-
-nano 9-download-arjuna.sh
+```
+2. Kemudian download resource yang diberikan asisten, dan ekstrak file tersebut
+```
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=17tAM_XDKYWDvF-JJix1x7txvTBEax7vX' -O downloaded-zip
-
 unzip downloaded-zip -d /var/www/
-
 mv /var/www/arjuna.yyy.com /var/www/arjuna.b24.com
-
 rm downloaded-zip
-
-nano 9-10-add-nginx-php-php-fpm.sh
+```
+3. Install nginx, php, dan php-fpm
+```
 apt-get update && apt install nginx php php-fpm -y
-
 php -v
-
-nano 9-10-deploy-arjuna.sh
-echo 'server {
+```
+4. Kemudian ubah teks pada file `/etc/nginx/sites-available/arjuna.b24.com` seperti di bawah ini
+```
+server {
 
 	listen 80;
 
@@ -487,34 +415,34 @@ location ~ /\.ht {
 	error_log /var/log/nginx/arjuna.b24.com_error.log;
 	access_log /var/log/nginx/arjuna.b24.com_access.log;
 }
-' > /etc/nginx/sites-available/arjuna.b24.com
-
+```
+5. Kemudian buat symlink
+```
 ln -s /etc/nginx/sites-available/arjuna.b24.com /etc/nginx/sites-enabled
-
+```
+6. Restart nginx
+```
 service nginx restart
-
 nginx -t
-
-
-nano 9-10-troubleshooting.sh
+```
+7. Hapus `/etc/nginx/sites-enabled/default`
+```
 rm -rf /etc/nginx/sites-enabled/default
-
+```
+8. Restart nginx lagi
+```
 service nginx restart
-
 nginx -t
-
 service php7.0-fpm start
-
 service php7.0-fpm restart
-
-ArjunaLoadBalancer
-nano .bashrc
+```
+9. Pada `ArjunaLoadBalancer`, install nginx
+```
 apt-get update
 apt-get install nginx -y
-	bash 10-lb-arjuna.sh
-
-	nano 10-lb-arjuna.sh
-	echo '# Default menggunakan Round Robin
+```
+10. Buat load balancer menggunakan algoritma `Round robin`
+```
 upstream myweb  {
 	server 192.190.2.4; #IP Abimanyu
 	server 192.190.2.5; #IP Prabakusuma
@@ -529,33 +457,39 @@ server {
 	proxy_pass http://myweb;
 	}
 }
-' > /etc/nginx/sites-available/lb-arjuna
-
+```
+11. Kemudian buat symlink
+```
 ln -s /etc/nginx/sites-available/lb-arjuna /etc/nginx/sites-enabled
-
+```
+12. Restart nginx
+```
 service nginx restart
-
 nginx -t
-
 nano 9-10-troubleshooting.sh
+```
+13. Hapus `/etc/nginx/sites-enabled/default`
+```
 rm -rf /etc/nginx/sites-enabled/default
-
+```
+14. Restart nginx lagi
+```
 service nginx restart
-
 nginx -t
-
-NakulaClient
-nano .bashrc
+```
+15. Pada `NakulaClient` dan `SadewaClient`, install lynx
+```
 apt-get update
 apt-get install lynx -y
-bash 9-10-add-arjuna-ns.sh
-echo '# nameserver 192.168.122.1
-# nameserver 192.190.2.3 # IP Arjuna
-nameserver 192.190.3.2 # IP Yudhistira
-' > /etc/resolv.conf
-
+```
+16. Tambahkan alamat IP Arjuna ke `/etc/resolv.conf`
+```
+nameserver 192.190.2.3 # IP Arjuna
+```
+17. Pengujian
+```
 lynx http://arjuna.b24.com
-
+```
 
 ### 10. Kemudian gunakan algoritma Round Robin untuk Load Balancer pada Arjuna. Gunakan server_name pada soal nomor 1. Untuk melakukan pengecekan akses alamat web tersebut kemudian pastikan worker yang digunakan untuk menangani permintaan akan berganti ganti secara acak. Untuk webserver di masing-masing worker wajib berjalan di port 8001-8003.
 ```
